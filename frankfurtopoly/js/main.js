@@ -97,6 +97,10 @@ function renderLobby() {
 }
 
 function renderGame() {
+  if (!S.game.order.every((n) => n in Board.tokenEls)) {
+    // new game: tokens start fresh (no slide-in from an old game)
+    for (const n of Object.keys(Board.tokenEls)) { Board.tokenEls[n].remove(); delete Board.tokenEls[n]; }
+  }
   show('screen-game');
   const g = S.game;
   Board.update(g);
@@ -373,6 +377,7 @@ $('dlg').addEventListener('close', () => { dialogField = null; });
 $('btn-props').addEventListener('click', () => S && S.game && openMyProps());
 $('btn-menu').addEventListener('click', () => S && openMenu());
 $('change-name').addEventListener('click', (e) => { e.preventDefault(); showNameScreen(); });
+window.addEventListener('resize', () => { if (S && S.game && !$('screen-game').classList.contains('hidden')) Board.update(S.game); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 
 // ---------------------------------------------------------------- start

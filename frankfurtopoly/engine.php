@@ -119,12 +119,22 @@ function fp_next_turn(&$g) {
     $g['dbl'] = 0; $g['again'] = false; $g['stage'] = 'roll'; $g['buyField'] = null;
 }
 
+// Records the last movement for the dashed line on the board: segments of one player's turn.
+// kind: walk (forward along the track), back (backwards), jump (straight to the JVA).
+function fp_seg(&$g, $p, $from, $to, $kind) {
+    if ($from === $to) return;
+    if (empty($g['lastMove']) || $g['lastMove']['who'] !== $p) $g['lastMove'] = ['who' => $p, 'segs' => []];
+    $g['lastMove']['segs'][] = ['from' => $from, 'to' => $to, 'kind' => $kind];
+}
+
 function fp_to_jail(&$g, $p) {
+    fp_seg($g, $p, $g['pos'][$p], FP_JAIL, 'jump');
     $g['pos'][$p] = FP_JAIL; $g['jail'][$p] = 0; $g['again'] = false; $g['dbl'] = 0;
     fp_log($g, "$p muss in die JVA.");
 }
 
 function fp_move_to(&$g, $p, $to, $passGo = true) {
+    fp_seg($g, $p, $g['pos'][$p], $to, 'walk');
     if ($passGo && $to < $g['pos'][$p]) { $g['money'][$p] += FP_GO_MONEY; fp_log($g, "$p kommt über Los: +" . fp_eur(FP_GO_MONEY)); }
     $g['pos'][$p] = $to;
 }
@@ -162,7 +172,10 @@ function fp_draw_card(&$g, $p, $deck) {
     fp_log($g, $p . ' zieht: ' . $c['text']);
     switch ($c['a']) {
         case 'move': fp_move_to($g, $p, $c['v']); fp_resolve($g, $p); return;
-        case 'back': $g['pos'][$p] = ($g['pos'][$p] + 40 - $c['v']) % 40; fp_resolve($g, $p); return;
+        case 'back':
+            $to = ($g['pos'][$p] + 40 - $c['v']) % 40;
+            fp_seg($g, $p, $g['pos'][$p], $to, 'back');
+            $g['pos'][$p] = $to; fp_resolve($g, $p); return;
         case 'school':
         case 'utility':
             $type = $c['a'];
@@ -188,6 +201,7 @@ function fp_draw_card(&$g, $p, $deck) {
 
 function fp_roll(&$g, $p) {
     $d = fp_dice(); $g['dice'] = $d; $sum = $d[0] + $d[1]; $double = $d[0] === $d[1];
+    $g['lastMove'] = ['who' => $p, 'segs' => []];
     fp_log($g, "$p würfelt {$d[0]}+{$d[1]}" . ($double ? ' (Pasch)' : ''));
     if ($g['jail'][$p] >= 0) {
         if ($double) {

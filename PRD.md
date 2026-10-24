@@ -91,7 +91,11 @@ Status: **v0.2 – von Daniel geklärt (2026-10-24): offizielle Regeln, Computer
   Hochformat: Brett oben, darunter Spieler/Aktionen.
 - Feld antippen → Details (Mieten, Besitzer) und, wenn es dir gehört, Bauen/Verkaufen/Hypothek.
 - Brettmitte: Würfel, „X ist dran“, zuletzt gezogene Karte (zusätzlich als Einblendung).
-- Spielfiguren = farbige Kreise mit Initiale (Daniel blau, Lea pink, Kira lila), Besitz = Kreis in der Feldecke.
+- Spielfiguren = große farbige Kreise mit Initiale, weißem Rand, dunkler Kontur und Schatten (Daniel blau, Lea pink, Kira lila,
+  Bembel orange, Handkäs türkis); sie schweben über dem Brett und gleiten beim Ziehen; wer dran ist, hat einen gelben Leuchtring.
+- **Letzter Zug** als gestrichelte Linie in der Farbe des Spielers mit Pfeil, entlang der gelaufenen Felder (inkl. Kartenzügen;
+  „Ab in die JVA“ als gerade Linie). Sie bleibt bis zum nächsten Wurf stehen.
+- Besitz = Farbband am Außenrand des Feldes plus dünner Rahmen in Besitzerfarbe; mit Hypothek gestreift.
 - Nur die Aktionen, die gerade erlaubt sind, werden als große Buttons angezeigt.
 
 ## 7. Technik
@@ -100,7 +104,7 @@ Status: **v0.2 – von Daniel geklärt (2026-10-24): offizielle Regeln, Computer
 - `api.php`: ein JSON-Zustand in `data/state.json` mit `flock`, `data/` per `.htaccess` gesperrt.
   `engine.php`: Regel-Engine als reine Funktionen. Server ist maßgeblich (würfelt, prüft jeden Zug).
 - Synchronisation per Polling alle 1,5 s (`api.php?v=<version>` → `{"same":true}`, wenn sich nichts geändert hat).
-- Service Worker cacht nur die Oberfläche (`frankfurtopoly-v2`), nie `api.php`.
+- Service Worker cacht nur die Oberfläche (`frankfurtopoly-v3`), nie `api.php`.
 - `bot.php`: Entscheidungen der Computergegner (reine Funktionen, getestet mit kompletten Bot-gegen-Bot-Spielen).
 - Deploy: GitHub Action bei jedem Push auf `main`: Tests, dann Upload per `lftp` (FTPS) mit den Secrets der
   Umgebung **FTP** (`FTP_SERVER`, `FTP_USER`, `FTP_PASSWORD`). Zielordner `FTP_DIR` (Variable, Standard `./frankfurtopoly/`).

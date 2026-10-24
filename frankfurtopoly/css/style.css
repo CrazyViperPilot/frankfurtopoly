@@ -76,16 +76,24 @@ button.danger { border-color: var(--danger); color: #fca5a5; }
 .top.t-street { padding-bottom: 3cqw; }
 .left.t-street { padding-right: 3cqw; }
 .right.t-street { padding-left: 3cqw; }
-.owner { position: absolute; right: 0.3cqw; bottom: 0.3cqw; width: 2.4cqw; height: 2.4cqw; border-radius: 50%;
-  color: #fff; font-size: 1.5cqw; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.owner:empty { display: none; }
-.owner.mortgaged { opacity: 0.45; outline: 1px dashed #000; }
-.tokens { position: absolute; left: 0.3cqw; bottom: 0.3cqw; display: flex; flex-wrap: wrap; gap: 1px; max-width: 75%; }
-.token { width: 3cqw; height: 3cqw; border-radius: 50%; border: 2px solid #fff; color: #fff; font-weight: 700; font-size: 1.7cqw;
-  display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px #0008; }
-.token.active { animation: pulse 1.2s infinite; }
-.token.jailed { outline: 2px solid #111; }
-@keyframes pulse { 50% { transform: scale(1.18); } }
+/* Owner: coloured band on the outer edge of the field; striped when mortgaged. */
+.owner { position: absolute; background: var(--oc, transparent); }
+.bottom .owner { left: 0; right: 0; bottom: 0; height: 1.1cqw; }
+.top .owner { left: 0; right: 0; top: 0; height: 1.1cqw; }
+.left .owner { top: 0; bottom: 0; left: 0; width: 1.1cqw; }
+.right .owner { top: 0; bottom: 0; right: 0; width: 1.1cqw; }
+.owner.mortgaged { background: repeating-linear-gradient(45deg, var(--oc) 0 0.6cqw, #fff 0.6cqw 1.2cqw); }
+.tile.owned { box-shadow: inset 0 0 0 0.25cqw var(--oc, transparent); }
+#board { position: relative; }
+#moves { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }
+#tokens { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.token { position: absolute; left: 0; top: 0; border-radius: 50%; color: #fff; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; border: 0.55cqw solid #fff;
+  box-shadow: 0 0 0 0.3cqw #111, 0 0.5cqw 1.2cqw #000c; text-shadow: 0 1px 2px #0008;
+  transition: transform 0.6s ease-in-out; }
+.token.active { animation: pulse 1.1s infinite; z-index: 1; box-shadow: 0 0 0 0.3cqw #111, 0 0 0 1.1cqw #ffd60aaa, 0 0.5cqw 1.2cqw #000c; }
+.token.jailed { border-color: #111; border-style: dashed; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 0.3cqw #111, 0 0 0 2cqw #ffd60a00, 0 0.5cqw 1.2cqw #000c; } }
 
 #center { grid-row: 2 / 11; grid-column: 2 / 11; background: #cfe5cf; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 1.5cqw; padding: 2cqw; text-align: center; }

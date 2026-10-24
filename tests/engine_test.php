@@ -166,6 +166,14 @@ fp_act($g, 'Lea', 'accept', []);
 check($g['props'][1]['o'] === 'Lea' && $g['props'][3]['o'] === 'Daniel', 'Tausch ausgeführt');
 check(fp_act($g, 'Daniel', 'offer', ['to' => 'Lea', 'give' => [], 'get' => [], 'giveMoney' => 2000, 'getMoney' => 0]) !== null, 'nicht genug Geld');
 
+// Last move for the dashed line
+$g = game(); $g['pos']['Daniel'] = 27; dice([1, 2]);
+fp_act($g, 'Daniel', 'roll', []);
+check($g['lastMove'] === ['who' => 'Daniel', 'segs' => [['from' => 27, 'to' => 30, 'kind' => 'walk'], ['from' => 30, 'to' => 10, 'kind' => 'jump']]], 'letzter Zug: laufen + Sprung in die JVA');
+$g = game(); $g['decks']['chance'] = [10]; $g['pos']['Daniel'] = 4; dice([1, 2]);
+fp_act($g, 'Daniel', 'roll', []);
+check(count($g['lastMove']['segs']) === 2 && $g['lastMove']['segs'][1]['kind'] === 'back', 'letzter Zug: 3 zurück');
+
 // Bots: whole games between computer opponents run without errors and without negative money
 $finished = 0; $botErrors = 0; $negative = 0;
 for ($run = 0; $run < 20; $run++) {
