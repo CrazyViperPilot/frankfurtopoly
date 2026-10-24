@@ -288,11 +288,16 @@ function openMenu() {
 const CHAT_OPEN_MS = 6000;
 const CHAT_PEEK_MS = 3500;
 let chatSeen = -1;     // highest message id already shown (-1 = first load, don't pop up)
+let chatUnread = 0;    // player messages that arrived while the chat was closed (badge on small screens)
+// Auto peek only on large screens (tablet from ~9 inch, PC): shorter side at least 600 CSS px.
+// On phones the open chat would cover half the screen, so they only get a badge on the button.
+const bigScreen = () => Math.min(window.innerWidth, window.innerHeight) >= 600;
 let chatTimer = null;
 let clockOffset = 0;   // server time minus local time, seconds
 
 function chatShow(ms) {
   $('chat').classList.remove('hidden');
+  chatUnread = 0;
   $('chat-dot').classList.add('hidden');
   clearTimeout(chatTimer);
   chatTimer = setTimeout(chatHideIfIdle, ms);
@@ -313,8 +318,15 @@ function renderChat() {
   list.scrollTop = list.scrollHeight;
   const top = msgs.length ? msgs[msgs.length - 1].id : 0;
   if (chatSeen >= 0 && top > chatSeen) {
-    const fromMe = msgs.filter((m) => m.id > chatSeen).every((m) => m.n === S.me);
-    if (!fromMe || !$('chat').classList.contains('hidden')) chatShow($('chat').classList.contains('hidden') ? CHAT_PEEK_MS : CHAT_OPEN_MS);
+    const fresh = msgs.filter((m) => m.id > chatSeen);
+    const open = !$('chat').classList.contains('hidden');
+    if (open) chatShow(CHAT_OPEN_MS);
+    else if (bigScreen()) { if (!fresh.every((m) => m.n === S.me)) chatShow(CHAT_PEEK_MS); }
+    else {
+      chatUnread += fresh.filter((m) => m.n && m.n !== S.me).length;
+      $('chat-dot').textContent = chatUnread > 9 ? '9+' : chatUnread;
+      $('chat-dot').classList.toggle('hidden', !chatUnread);
+    }
   }
   chatSeen = Math.max(chatSeen, top);
   $('chat-input').disabled = !S.joined;

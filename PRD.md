@@ -1,4 +1,4 @@
-# Frankfurtopoly – PRD (v0.4)
+# Frankfurtopoly – PRD (v0.5)
 
 Monopoly mit Frankfurter Straßen für 2–3 Spieler (Daniel, Lea, Kira) über das Netz, als Web-App im Browser auf
 Android-Smartphone und -Tablet. Live: **https://phpexpert.de/games/frankfurtopoly/**
@@ -37,7 +37,10 @@ Status: **v0.2 – von Daniel geklärt (2026-10-24): offizielle Regeln, Computer
 
 ## 3b. Chat (v0.2)
 - 💬-Button unten rechts. Antippen blendet den Chat ein; nach ein paar Sekunden ohne Eingabe blendet er sich wieder aus.
-- Neue Nachricht: Der Chat blendet sich kurz ein und wieder aus.
+- Neue Nachricht (v0.5): Nur auf **großen Bildschirmen** (kürzere Seite ≥ 600 CSS-Pixel, d. h. Tablet ab ca. 9 Zoll und PC)
+  blendet sich der Chat kurz ein und wieder aus. Auf **Smartphones** (auch quer, kürzere Seite ca. 400 px) bleibt er zu,
+  weil er sonst den halben Bildschirm verdeckt; dort zeigt der 💬-Button einen roten Zähler für neue Nachrichten von
+  Mitspielern (Spielaktionen zählen nicht mit). Erkennung über die Bildschirmgröße, nicht über den Gerätetyp.
 - **Jede Spielaktion** steht auch als (graue) Chatnachricht im Chat, z. B. „Kira kauft Emma-Kann-Grundschule für 200 €“,
   ebenso Lobby-Ereignisse (hostet, spielt mit, Spielstart, Sieger).
 - Nachrichten werden nach **5 Minuten** gelöscht. Max. 200 Zeichen. Schreiben kann, wer in der Runde ist.
@@ -114,7 +117,7 @@ Status: **v0.2 – von Daniel geklärt (2026-10-24): offizielle Regeln, Computer
 - `api.php`: ein JSON-Zustand in `data/state.json` mit `flock`, `data/` per `.htaccess` gesperrt.
   `engine.php`: Regel-Engine als reine Funktionen. Server ist maßgeblich (würfelt, prüft jeden Zug).
 - Synchronisation per Polling alle 1,5 s (`api.php?v=<version>` → `{"same":true}`, wenn sich nichts geändert hat).
-- Service Worker cacht nur die Oberfläche (`frankfurtopoly-v5`), nie `api.php`.
+- Service Worker cacht nur die Oberfläche (`frankfurtopoly-v6`), nie `api.php`.
 - `bot.php`: Entscheidungen der Computergegner (reine Funktionen, getestet mit kompletten Bot-gegen-Bot-Spielen).
 - Deploy: GitHub Action bei jedem Push auf `main`: Tests, dann Upload per `lftp` (FTPS) mit den Secrets der
   Umgebung **FTP** (`FTP_SERVER`, `FTP_USER`, `FTP_PASSWORD`). Zielordner `FTP_DIR` (Variable, Standard `./frankfurtopoly/`).
