@@ -3,6 +3,8 @@ const $ = (id) => document.getElementById(id);
 const eur = (v) => v.toLocaleString('de-DE') + ' €';
 const DICE = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+// Button countdown: number + shrinking bar, filled in every second by updateTimers() from S[key].
+const timer = (key, total) => `<span class="tleft" data-timer="${key}" data-total="${total}"></span><i class="tbar" data-timer="${key}" data-total="${total}"></i>`;
 const dot = (n) => `<span class="pdot" style="background:${PLAYER_COLORS[n]}">${n[0]}</span>`;
 
 let S = null;          // last state from the server
@@ -126,7 +128,7 @@ function renderGame() {
   }).join('');
 
   $('actions').innerHTML = actionsHtml(g, cur);
-  updateAutoEnd();
+  updateTimers();
   $('log').innerHTML = g.log.slice(-8).reverse().map((l) => `<div>${esc(l)}</div>`).join('');
   if (dialogField !== null && $('dlg').open) openField(dialogField);
 }
@@ -146,19 +148,20 @@ function actionsHtml(g, cur) {
   const t = g.trade;
   if (t && t.to === me) {
     h += `<div class="box"><b>${t.from}</b> bietet dir:<br>${tradeText(t.give, t.giveMoney)}<br>und möchte:<br>${tradeText(t.get, t.getMoney)}`
-      + '<div class="row"><button data-act="accept">Annehmen</button><button class="ghost" data-act="reject">Ablehnen</button></div></div>';
+      + `<div class="row"><button class="timed" data-act="accept">Annehmen ${timer('tradeEnd', 30)}</button><button class="ghost" data-act="reject">Ablehnen</button></div>`
+      + '<p class="muted small">Ohne Antwort läuft das Angebot nach 30 s ab.</p></div>';
   } else if (t && t.from === me) {
-    h += `<div class="box">Angebot an <b>${t.to}</b> wartet auf Antwort. <button class="ghost" data-act="reject">Zurückziehen</button></div>`;
+    h += `<div class="box">Angebot an <b>${t.to}</b> wartet auf Antwort. <button class="ghost timed" data-act="reject">Zurückziehen ${timer('tradeEnd', 30)}</button></div>`;
   }
   switch (g.stage) {
     case 'roll':
       if (!mine) return h + `<p class="muted">Warte auf ${cur} …</p>`;
       if (g.jail[me] >= 0) {
-        h += `<p>Du sitzt in der JVA (Versuch ${g.jail[me] + 1} von 3).</p><button data-act="roll">Pasch würfeln</button>`
+        h += `<p>Du sitzt in der JVA (Versuch ${g.jail[me] + 1} von 3).</p><button class="timed" data-act="roll">Pasch würfeln ${timer('rollEnd', 60)}</button>`
           + `<button data-act="payjail">50 € zahlen</button>`
           + (g.jailCards[me].length ? '<button data-act="usecard">Freikarte nutzen</button>' : '');
       } else {
-        h += `<button class="big" data-act="roll">🎲 Würfeln</button>`;
+        h += `<button class="big timed" data-act="roll">🎲 Würfeln ${timer('rollEnd', 60)}</button>`;
       }
       return h + '<button class="ghost" data-act="trade">Handeln</button>';
     case 'buy': {
@@ -176,7 +179,7 @@ function actionsHtml(g, cur) {
       if (a.passed.includes(me)) return h + '<p class="muted">Du bist ausgestiegen.</p>';
       h += '<div class="row">' + [10, 50, 100].map((x) => `<button data-act="bid" data-amount="${a.bid + x}" ${a.bid + x > g.money[me] ? 'disabled' : ''}>${eur(a.bid + x)}</button>`).join('') + '</div>';
       return h + (a.leader === me ? '<p class="muted">Du hast das Höchstgebot.</p>'
-        : '<button class="ghost" data-act="pass">Aussteigen</button><p class="muted small" id="auctionend"></p>');
+        : `<button class="ghost timed" data-act="pass">Aussteigen ${timer('auctionEnd', 20)}</button><p class="muted small">Ohne Gebot steigst du automatisch aus.</p>`);
     }
     case 'debt': {
       const d = g.debts[0];
@@ -187,8 +190,7 @@ function actionsHtml(g, cur) {
     }
     case 'end':
       if (!mine) return h + `<p class="muted">Warte auf ${cur} …</p>`;
-      return h + '<button class="big" data-act="endturn">Zug beenden</button><button class="ghost" data-act="trade">Handeln</button>'
-        + '<p class="muted small" id="autoend"></p>';
+      return h + `<button class="big timed" data-act="endturn">Zug beenden ${timer('autoEnd', 30)}</button><button class="ghost" data-act="trade">Handeln</button>`;
   }
   return h;
 }
@@ -320,16 +322,22 @@ function renderChat() {
 }
 setInterval(() => { if (S) renderChat(); }, 15000);
 
-// Countdown until the server ends a finished turn by itself (30 s without any action).
-// Same for auctions: without a new bid for 20 s you drop out.
-function updateAutoEnd() {
+// Countdowns enforced by the server: auto roll after 60 s (rollEnd), turn ends after 30 s (autoEnd), auction drop-out after 20 s (auctionEnd),
+// trade offers expire after 30 s (tradeEnd). Shown inside the matching button as seconds and a shrinking bar.
+function updateTimers() {
   const now = Date.now() / 1000 + clockOffset;
-  for (const [id, at, text] of [['autoend', S && S.autoEnd, 'Zug endet automatisch in'], ['auctionend', S && S.auctionEnd, 'Ohne Gebot steigst du automatisch aus in']]) {
-    const el = $(id);
-    if (el) el.textContent = at ? `${text} ${Math.max(0, Math.ceil(at - now))} s` : '';
-  }
+  document.querySelectorAll('[data-timer]').forEach((el) => {
+    const at = S && S[el.dataset.timer];
+    const left = at ? Math.max(0, at - now) : 0;
+    if (el.classList.contains('tbar')) {
+      el.style.width = at ? Math.min(100, (left / +el.dataset.total) * 100) + '%' : '0';
+      el.classList.toggle('low', left <= 10);
+    } else {
+      el.textContent = at ? Math.ceil(left) + ' s' : '';
+    }
+  });
 }
-setInterval(updateAutoEnd, 1000);
+setInterval(updateTimers, 250);
 
 $('chat-btn').addEventListener('click', () => {
   if ($('chat').classList.contains('hidden')) chatShow(CHAT_OPEN_MS); else $('chat').classList.add('hidden');

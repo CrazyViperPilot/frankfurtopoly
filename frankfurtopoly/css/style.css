@@ -150,3 +150,12 @@ input[type=number] { width: 100%; font: inherit; padding: 0.4em; border-radius: 
 #chat-form button { margin: 0; }
 button.mini { min-height: 0; padding: 0.15em 0.5em; font-size: 0.8em; }
 #panel { padding-bottom: 72px; }
+
+/* ------------------------------------------------------------ countdown in buttons */
+button.timed { position: relative; overflow: hidden; }
+.tleft { display: inline-block; min-width: 2.6em; margin-left: 0.3em; padding: 0 0.35em; border-radius: 6px;
+  background: #0003; font-variant-numeric: tabular-nums; }
+.tleft:empty { display: none; }
+.tbar { position: absolute; left: 0; bottom: 0; height: 5px; background: #0f3d2e; transition: width 0.25s linear; }
+button.ghost .tbar { background: var(--accent); }
+.tbar.low { background: var(--danger) !important; }

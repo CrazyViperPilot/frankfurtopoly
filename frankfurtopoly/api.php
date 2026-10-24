@@ -17,6 +17,8 @@ const FP_MAX_PLAYERS = 4;
 const FP_BOT_DELAY = 1.0;
 const FP_AUTO_END = 30;      // seconds after which a finished turn (stage 'end') ends by itself
 const FP_AUCTION_IDLE = 20;  // seconds without a new bid after which humans who haven't bid drop out
+const FP_TRADE_IDLE = 30;    // seconds until an unanswered trade offer expires
+const FP_AUTO_ROLL = 60;     // seconds without rolling after which the server rolls for the player
 const FP_CHAT_TTL = 300;      // chat messages are deleted after 5 minutes
 const FP_CHAT_MAX = 200;      // characters per message
 
@@ -42,7 +44,7 @@ flock($fp, LOCK_EX);
 function empty_state($old = null) {
     return ['version' => $old ? $old['version'] + 1 : 1, 'phase' => 'none', 'host' => null, 'players' => [], 'game' => null,
             'result' => null, 'updated' => time(), 'chat' => $old ? $old['chat'] : [], 'chatN' => $old ? $old['chatN'] : 0,
-            'logSeen' => 0, 'botAt' => 0, 'endKey' => '', 'endAt' => 0, 'aucKey' => '', 'aucAt' => 0];
+            'logSeen' => 0, 'botAt' => 0, 'endKey' => '', 'endAt' => 0, 'aucKey' => '', 'aucAt' => 0, 'tradeKey' => '', 'tradeAt' => 0, 'rollKey' => '', 'rollAt' => 0];
 }
 function player_idx($st, $n) { foreach ($st['players'] as $i => $p) if ($p['name'] === $n) return $i; return -1; }
 function new_token() { return bin2hex(random_bytes(16)); }
@@ -66,7 +68,7 @@ function finish_if_over(&$st) {
 
 $st = json_decode(stream_get_contents($fp), true);
 if (!is_array($st) || !isset($st['phase'])) $st = empty_state();
-$st += ['chat' => [], 'chatN' => 0, 'logSeen' => 0, 'botAt' => 0, 'endKey' => '', 'endAt' => 0, 'aucKey' => '', 'aucAt' => 0];
+$st += ['chat' => [], 'chatN' => 0, 'logSeen' => 0, 'botAt' => 0, 'endKey' => '', 'endAt' => 0, 'aucKey' => '', 'aucAt' => 0, 'tradeKey' => '', 'tradeAt' => 0, 'rollKey' => '', 'rollAt' => 0];
 $now = time();
 $dirty = false;
 if ($st['phase'] !== 'none' && $now - $st['updated'] > FP_IDLE_RESET) { $st = empty_state($st); $dirty = true; }
@@ -184,7 +186,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $st['version']++; $st['updated'] = $now; $dirty = true;
     $st['botAt'] = microtime(true) + FP_BOT_DELAY;   // give humans a moment to see what happened
     // Anything the player on turn does restarts the auto-end countdown.
-    if ($st['phase'] === 'playing' && fp_cur($st['game']) === $name) $st['endKey'] = '';
+    if ($st['phase'] === 'playing' && fp_cur($st['game']) === $name) { $st['endKey'] = ''; $st['rollKey'] = ''; }
+} elseif ($st['phase'] === 'playing' && $st['game']['stage'] === 'roll' && $st['rollKey'] !== '' && $now >= $st['rollAt']
+          && !in_array(fp_cur($st['game']), bot_names($st), true)) {
+    // Nobody rolled for FP_AUTO_ROLL seconds: the server rolls (in the JVA this is the attempt to roll a double).
+    $cur = fp_cur($st['game']);
+    fp_log($st['game'], "$cur: automatisch gewürfelt.");
+    fp_act($st['game'], $cur, 'roll', []);
+    sync_log($st);
+    if ($st['game']['stage'] === 'over') chat_add($st, null, $st['game']['winner'] . ' gewinnt Frankfurtopoly!');
+    finish_if_over($st);
+    $st['rollKey'] = '';
+    $st['version']++; $st['updated'] = $now; $st['botAt'] = microtime(true) + FP_BOT_DELAY; $dirty = true;
+} elseif ($st['phase'] === 'playing' && $st['game']['trade'] && $st['tradeKey'] !== '' && $now >= $st['tradeAt']) {
+    // Unanswered trade offer expires.
+    $t = $st['game']['trade'];
+    $st['game']['trade'] = null;
+    fp_log($st['game'], "Das Angebot von {$t['from']} an {$t['to']} ist abgelaufen.");
+    sync_log($st);
+    $st['tradeKey'] = '';
+    $st['version']++; $st['updated'] = $now; $dirty = true;
 } elseif ($st['phase'] === 'playing' && $st['game']['stage'] === 'auction' && $st['aucKey'] !== '' && $now >= $st['aucAt']) {
     // Auction: humans who haven't bid for FP_AUCTION_IDLE seconds drop out (the high bidder stays; bots decide themselves).
     $a = $st['game']['auction']; $bots = bot_names($st);
@@ -220,6 +241,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Trade countdown: starts with every new offer.
+if ($st['phase'] === 'playing' && $st['game']['trade']) {
+    $key = json_encode($st['game']['trade']);
+    if ($st['tradeKey'] !== $key) { $st['tradeKey'] = $key; $st['tradeAt'] = $now + FP_TRADE_IDLE; $dirty = true; }
+} elseif ($st['tradeKey'] !== '') {
+    $st['tradeKey'] = ''; $dirty = true;
+}
+
 // Auction countdown: restarts with every new high bid.
 if ($st['phase'] === 'playing' && $st['game']['stage'] === 'auction') {
     $a = $st['game']['auction'];
@@ -227,6 +256,13 @@ if ($st['phase'] === 'playing' && $st['game']['stage'] === 'auction') {
     if ($key !== $st['aucKey']) { $st['aucKey'] = $key; $st['aucAt'] = $now + FP_AUCTION_IDLE; $dirty = true; }
 } elseif ($st['aucKey'] !== '') {
     $st['aucKey'] = ''; $dirty = true;
+}
+
+// Countdown for the auto roll: starts when a human player has to roll.
+if ($st['phase'] === 'playing' && $st['game']['stage'] === 'roll' && !in_array(fp_cur($st['game']), bot_names($st), true)) {
+    if ($st['rollKey'] === '' || $st['rollKey'] !== fp_cur($st['game'])) { $st['rollKey'] = fp_cur($st['game']); $st['rollAt'] = $now + FP_AUTO_ROLL; $dirty = true; }
+} elseif ($st['rollKey'] !== '') {
+    $st['rollKey'] = ''; $dirty = true;
 }
 
 // Countdown for the auto end: starts when a human player's turn reaches stage 'end'.
@@ -255,7 +291,8 @@ foreach ($st['players'] as $p) $players[] = ['name' => $p['name'], 'online' => $
 $out = ['version' => $st['version'], 'phase' => $st['phase'], 'host' => $st['host'], 'players' => $players,
         'game' => $st['game'], 'result' => $st['result'], 'me' => $name, 'joined' => $authed || $issued !== null,
         'chat' => $st['chat'], 'now' => $now, 'autoEnd' => $st['endKey'] !== '' ? $st['endAt'] : null,
-        'auctionEnd' => $st['aucKey'] !== '' ? $st['aucAt'] : null];
+        'auctionEnd' => $st['aucKey'] !== '' ? $st['aucAt'] : null, 'tradeEnd' => $st['tradeKey'] !== '' ? $st['tradeAt'] : null,
+        'rollEnd' => $st['rollKey'] !== '' ? $st['rollAt'] : null];
 if ($out['game']) unset($out['game']['decks']);
 if ($issued !== null) $out['token'] = $issued;
 echo json_encode($out, JSON_UNESCAPED_UNICODE);
