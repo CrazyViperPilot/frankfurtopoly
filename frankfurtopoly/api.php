@@ -15,6 +15,8 @@ const FP_STALE_PLAYER = 30;   // seconds without a request before a name can be 
 const FP_IDLE_RESET = 21600;  // 6 h without any action resets everything
 const FP_MAX_PLAYERS = 4;
 const FP_BOT_DELAY = 1.0;
+const FP_AUTO_END = 30;      // seconds after which a finished turn (stage 'end') ends by itself
+const FP_AUCTION_IDLE = 20;  // seconds without a new bid after which humans who haven't bid drop out
 const FP_CHAT_TTL = 300;      // chat messages are deleted after 5 minutes
 const FP_CHAT_MAX = 200;      // characters per message
 
@@ -40,7 +42,7 @@ flock($fp, LOCK_EX);
 function empty_state($old = null) {
     return ['version' => $old ? $old['version'] + 1 : 1, 'phase' => 'none', 'host' => null, 'players' => [], 'game' => null,
             'result' => null, 'updated' => time(), 'chat' => $old ? $old['chat'] : [], 'chatN' => $old ? $old['chatN'] : 0,
-            'logSeen' => 0, 'botAt' => 0];
+            'logSeen' => 0, 'botAt' => 0, 'endKey' => '', 'endAt' => 0, 'aucKey' => '', 'aucAt' => 0];
 }
 function player_idx($st, $n) { foreach ($st['players'] as $i => $p) if ($p['name'] === $n) return $i; return -1; }
 function new_token() { return bin2hex(random_bytes(16)); }
@@ -64,7 +66,7 @@ function finish_if_over(&$st) {
 
 $st = json_decode(stream_get_contents($fp), true);
 if (!is_array($st) || !isset($st['phase'])) $st = empty_state();
-$st += ['chat' => [], 'chatN' => 0, 'logSeen' => 0, 'botAt' => 0];
+$st += ['chat' => [], 'chatN' => 0, 'logSeen' => 0, 'botAt' => 0, 'endKey' => '', 'endAt' => 0, 'aucKey' => '', 'aucAt' => 0];
 $now = time();
 $dirty = false;
 if ($st['phase'] !== 'none' && $now - $st['updated'] > FP_IDLE_RESET) { $st = empty_state($st); $dirty = true; }
@@ -181,6 +183,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $st['version']++; $st['updated'] = $now; $dirty = true;
     $st['botAt'] = microtime(true) + FP_BOT_DELAY;   // give humans a moment to see what happened
+    // Anything the player on turn does restarts the auto-end countdown.
+    if ($st['phase'] === 'playing' && fp_cur($st['game']) === $name) $st['endKey'] = '';
+} elseif ($st['phase'] === 'playing' && $st['game']['stage'] === 'auction' && $st['aucKey'] !== '' && $now >= $st['aucAt']) {
+    // Auction: humans who haven't bid for FP_AUCTION_IDLE seconds drop out (the high bidder stays; bots decide themselves).
+    $a = $st['game']['auction']; $bots = bot_names($st);
+    foreach (fp_active($st['game']) as $n) {
+        if (in_array($n, $bots, true) || $n === $a['leader'] || in_array($n, $a['passed'], true)) continue;
+        if ($st['game']['stage'] !== 'auction') break;
+        fp_log($st['game'], "$n hat " . FP_AUCTION_IDLE . ' s nicht geboten:');
+        fp_act($st['game'], $n, 'pass', []);
+    }
+    sync_log($st);
+    $st['aucKey'] = '';
+    $st['version']++; $st['updated'] = $now; $st['botAt'] = microtime(true) + FP_BOT_DELAY; $dirty = true;
+} elseif ($st['phase'] === 'playing' && $st['game']['stage'] === 'end' && $st['endKey'] !== '' && $now >= $st['endAt']
+          && !in_array(fp_cur($st['game']), bot_names($st), true)) {
+    // Turn finished but nobody pressed "Zug beenden" for FP_AUTO_END seconds.
+    $cur = fp_cur($st['game']);
+    fp_log($st['game'], "$cur: Zug automatisch beendet.");
+    fp_act($st['game'], $cur, 'endturn', []);
+    sync_log($st);
+    $st['version']++; $st['updated'] = $now; $st['botAt'] = microtime(true) + FP_BOT_DELAY; $dirty = true;
 } elseif ($st['phase'] === 'playing' && microtime(true) >= $st['botAt']) {
     $bots = bot_names($st);
     $next = $bots ? fp_bot_next($st['game'], $bots) : null;
@@ -194,6 +218,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         finish_if_over($st);
         $st['version']++; $st['updated'] = $now; $st['botAt'] = microtime(true) + FP_BOT_DELAY; $dirty = true;
     }
+}
+
+// Auction countdown: restarts with every new high bid.
+if ($st['phase'] === 'playing' && $st['game']['stage'] === 'auction') {
+    $a = $st['game']['auction'];
+    $key = $a['field'] . '|' . $a['bid'] . '|' . $a['leader'];
+    if ($key !== $st['aucKey']) { $st['aucKey'] = $key; $st['aucAt'] = $now + FP_AUCTION_IDLE; $dirty = true; }
+} elseif ($st['aucKey'] !== '') {
+    $st['aucKey'] = ''; $dirty = true;
+}
+
+// Countdown for the auto end: starts when a human player's turn reaches stage 'end'.
+if ($st['phase'] === 'playing' && $st['game']['stage'] === 'end') {
+    $key = fp_cur($st['game']) . '|' . $st['game']['turn'] . '|' . (isset($st['game']['logN']) ? $st['game']['logN'] : 0);
+    if ($st['endKey'] === '' || explode('|', $st['endKey'])[0] !== fp_cur($st['game'])) {
+        $st['endKey'] = $key; $st['endAt'] = $now + FP_AUTO_END; $dirty = true;
+    }
+} elseif ($st['endKey'] !== '') {
+    $st['endKey'] = ''; $dirty = true;
 }
 
 function save($fp, $st) {
@@ -211,7 +254,8 @@ $players = [];
 foreach ($st['players'] as $p) $players[] = ['name' => $p['name'], 'online' => $p['online'], 'bot' => !empty($p['bot'])];
 $out = ['version' => $st['version'], 'phase' => $st['phase'], 'host' => $st['host'], 'players' => $players,
         'game' => $st['game'], 'result' => $st['result'], 'me' => $name, 'joined' => $authed || $issued !== null,
-        'chat' => $st['chat'], 'now' => $now];
+        'chat' => $st['chat'], 'now' => $now, 'autoEnd' => $st['endKey'] !== '' ? $st['endAt'] : null,
+        'auctionEnd' => $st['aucKey'] !== '' ? $st['aucAt'] : null];
 if ($out['game']) unset($out['game']['decks']);
 if ($issued !== null) $out['token'] = $issued;
 echo json_encode($out, JSON_UNESCAPED_UNICODE);

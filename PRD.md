@@ -1,4 +1,4 @@
-# Frankfurtopoly – PRD (v0.2)
+# Frankfurtopoly – PRD (v0.3)
 
 Monopoly mit Frankfurter Straßen für 2–3 Spieler (Daniel, Lea, Kira) über das Netz, als Web-App im Browser auf
 Android-Smartphone und -Tablet. Live: **https://phpexpert.de/games/frankfurtopoly/**
@@ -77,6 +77,11 @@ Status: **v0.2 – von Daniel geklärt (2026-10-24): offizielle Regeln, Computer
 - **JVA**: raus mit Pasch (kein Extrawurf), 50 € zahlen (vor dem Würfeln) oder Freikarte. Nach dem 3. erfolglosen Versuch
   50 € zahlen und ziehen. Auf Besuch stehen kostet nichts.
 - Karten „nächste Schule“ = doppelte Miete; „nächstes Werk“ = neu würfeln, 10× Augenzahl.
+- **Zeitlimits** (v0.3, vom Server durchgesetzt, auch wenn die App zu ist; Countdown in der App):
+  - Nach dem Würfeln (Phase „Zug beenden“) endet der Zug nach **30 s ohne Aktion** automatisch. Jede eigene Aktion
+    (bauen, Hypothek, Handel, Chat) startet die 30 s neu. Kaufen/Versteigern und Schulden werden nie automatisch entschieden.
+  - Versteigerung: Wer **20 s** nach dem letzten Höchstgebot nicht geboten hat, steigt automatisch aus
+    (jedes neue Höchstgebot startet die 20 s für alle neu; der Höchstbietende bleibt drin).
 - **Handeln**: Der Spieler am Zug bietet einem Mitspieler Felder und/oder Geld gegen Felder und/oder Geld an; der andere
   nimmt an oder lehnt ab. Felder mit Häusern in ihrer Farbgruppe sind nicht handelbar. Hypotheken gehen ohne Zinsen mit.
 - **Schulden**: Kann man nicht zahlen, muss man Häuser verkaufen/Hypotheken aufnehmen (die Zahlung erfolgt automatisch,
@@ -104,7 +109,7 @@ Status: **v0.2 – von Daniel geklärt (2026-10-24): offizielle Regeln, Computer
 - `api.php`: ein JSON-Zustand in `data/state.json` mit `flock`, `data/` per `.htaccess` gesperrt.
   `engine.php`: Regel-Engine als reine Funktionen. Server ist maßgeblich (würfelt, prüft jeden Zug).
 - Synchronisation per Polling alle 1,5 s (`api.php?v=<version>` → `{"same":true}`, wenn sich nichts geändert hat).
-- Service Worker cacht nur die Oberfläche (`frankfurtopoly-v3`), nie `api.php`.
+- Service Worker cacht nur die Oberfläche (`frankfurtopoly-v4`), nie `api.php`.
 - `bot.php`: Entscheidungen der Computergegner (reine Funktionen, getestet mit kompletten Bot-gegen-Bot-Spielen).
 - Deploy: GitHub Action bei jedem Push auf `main`: Tests, dann Upload per `lftp` (FTPS) mit den Secrets der
   Umgebung **FTP** (`FTP_SERVER`, `FTP_USER`, `FTP_PASSWORD`). Zielordner `FTP_DIR` (Variable, Standard `./frankfurtopoly/`).
@@ -125,4 +130,4 @@ Status: **v0.2 – von Daniel geklärt (2026-10-24): offizielle Regeln, Computer
   Hypotheken gehen beim Handel ohne 10 % Zinsen mit.
 - Straßen und Farbgruppen wie in Abschnitt 4.
 - Eintrag auf der Games-Startseite (`crazyviperpilot.github.io/games/`) mit Link nach phpexpert.de.
-- Kein Zugtimer.
+- Kein Timer vor dem Würfeln und bei Kauf-/Schuldenentscheidungen; nur die Zeitlimits aus Abschnitt 5.

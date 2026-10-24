@@ -126,6 +126,7 @@ function renderGame() {
   }).join('');
 
   $('actions').innerHTML = actionsHtml(g, cur);
+  updateAutoEnd();
   $('log').innerHTML = g.log.slice(-8).reverse().map((l) => `<div>${esc(l)}</div>`).join('');
   if (dialogField !== null && $('dlg').open) openField(dialogField);
 }
@@ -174,7 +175,8 @@ function actionsHtml(g, cur) {
       if (a.passed.length) h += `<p class="muted">Ausgestiegen: ${a.passed.join(', ')}</p>`;
       if (a.passed.includes(me)) return h + '<p class="muted">Du bist ausgestiegen.</p>';
       h += '<div class="row">' + [10, 50, 100].map((x) => `<button data-act="bid" data-amount="${a.bid + x}" ${a.bid + x > g.money[me] ? 'disabled' : ''}>${eur(a.bid + x)}</button>`).join('') + '</div>';
-      return h + (a.leader === me ? '<p class="muted">Du hast das Höchstgebot.</p>' : '<button class="ghost" data-act="pass">Aussteigen</button>');
+      return h + (a.leader === me ? '<p class="muted">Du hast das Höchstgebot.</p>'
+        : '<button class="ghost" data-act="pass">Aussteigen</button><p class="muted small" id="auctionend"></p>');
     }
     case 'debt': {
       const d = g.debts[0];
@@ -185,7 +187,8 @@ function actionsHtml(g, cur) {
     }
     case 'end':
       if (!mine) return h + `<p class="muted">Warte auf ${cur} …</p>`;
-      return h + '<button class="big" data-act="endturn">Zug beenden</button><button class="ghost" data-act="trade">Handeln</button>';
+      return h + '<button class="big" data-act="endturn">Zug beenden</button><button class="ghost" data-act="trade">Handeln</button>'
+        + '<p class="muted small" id="autoend"></p>';
   }
   return h;
 }
@@ -316,6 +319,17 @@ function renderChat() {
   $('chat-input').placeholder = S.joined ? 'Nachricht …' : 'Erst der Runde beitreten';
 }
 setInterval(() => { if (S) renderChat(); }, 15000);
+
+// Countdown until the server ends a finished turn by itself (30 s without any action).
+// Same for auctions: without a new bid for 20 s you drop out.
+function updateAutoEnd() {
+  const now = Date.now() / 1000 + clockOffset;
+  for (const [id, at, text] of [['autoend', S && S.autoEnd, 'Zug endet automatisch in'], ['auctionend', S && S.auctionEnd, 'Ohne Gebot steigst du automatisch aus in']]) {
+    const el = $(id);
+    if (el) el.textContent = at ? `${text} ${Math.max(0, Math.ceil(at - now))} s` : '';
+  }
+}
+setInterval(updateAutoEnd, 1000);
 
 $('chat-btn').addEventListener('click', () => {
   if ($('chat').classList.contains('hidden')) chatShow(CHAT_OPEN_MS); else $('chat').classList.add('hidden');

@@ -1,6 +1,6 @@
 // Frankfurtopoly Service Worker: network-first for the app shell, cache only as offline fallback.
 // api.php is never cached. Bump CACHE_VERSION when files change.
-const CACHE_VERSION = 'frankfurtopoly-v3';
+const CACHE_VERSION = 'frankfurtopoly-v4';
 const CACHE_PREFIX = 'frankfurtopoly-';
 const ASSETS = ['./', './index.html', './manifest.json', './board.json', './css/style.css', './js/api.js', './js/board.js', './js/main.js',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
