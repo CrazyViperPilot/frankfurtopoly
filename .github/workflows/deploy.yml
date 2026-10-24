@@ -1,0 +1,81 @@
+# Tests the rules engine and uploads the game to phpexpert.de/games/frankfurtopoly/ on every push to main.
+#
+# Secrets of the environment "FTP" (Settings → Environments → FTP):
+#   FTP_SERVER, FTP_USER, FTP_PASSWORD
+# Optional variables (same environment):
+#   FTP_DIR       target folder relative to the FTP login, with trailing slash
+#                 (default ./frankfurtopoly/ – assumes the login starts in /games)
+#   FTP_PROTOCOL  ftps (default) or ftp
+#   FTP_SECURITY  strict (default) or loose, if the FTPS certificate does not match the host name
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency: deploy
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP syntax
+        run: for f in frankfurtopoly/*.php tests/*.php; do php -l "$f"; done
+      - name: Rules engine tests
+        run: php tests/engine_test.php
+      - name: JavaScript syntax
+        run: for f in frankfurtopoly/js/*.js frankfurtopoly/sw.js; do node --check "$f"; done
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: FTP
+    steps:
+      - name: Check secrets
+        id: check
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+        run: |
+          if [ -n "$FTP_SERVER" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::FTP-Secrets fehlen – Deploy übersprungen."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ready == 'true'
+
+      # lftp instead of a Node FTP action: it handles FTPS servers that require
+      # TLS session reuse on the data connection (dogado resets it otherwise).
+      - name: Upload via FTP
+        if: steps.check.outputs.ready == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_DIR: ${{ vars.FTP_DIR || './frankfurtopoly/' }}
+          FTP_PROTOCOL: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          FTP_SECURITY: ${{ vars.FTP_SECURITY || 'strict' }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp > /dev/null
+          ssl=$([ "$FTP_PROTOCOL" = "ftp" ] && echo false || echo true)
+          verify=$([ "$FTP_SECURITY" = "loose" ] && echo no || echo yes)
+          # No --delete: data/state.json (the running game) on the server is never touched.
+          lftp --env-password -u "$FTP_USER" "$FTP_SERVER" <<EOF2
+          set ftp:ssl-force $ssl
+          set ftp:ssl-protect-data $ssl
+          set ssl:verify-certificate $verify
+          set ftp:passive-mode true
+          set net:timeout 20
+          set net:max-retries 2
+          echo "FTP-Login startet in:"
+          pwd
+          cls -1
+          mkdir -p -f $FTP_DIR
+          mirror --reverse --no-perms --verbose --exclude-glob data/*.json frankfurtopoly/ $FTP_DIR
+          bye
+          EOF2

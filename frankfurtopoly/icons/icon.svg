@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0f3d2e"/>
+  <rect x="56" y="56" width="400" height="400" rx="24" fill="#e8f3e8"/>
+  <rect x="56" y="56" width="400" height="70" rx="24" fill="#dc2626"/>
+  <rect x="56" y="386" width="400" height="70" rx="24" fill="#1e3a8a"/>
+  <g fill="#0f3d2e">
+    <rect x="140" y="250" width="40" height="110"/><rect x="190" y="200" width="44" height="160"/>
+    <rect x="244" y="150" width="34" height="210"/><rect x="288" y="220" width="46" height="140"/><rect x="344" y="270" width="30" height="90"/>
+  </g>
+  <polygon points="261,118 248,150 274,150" fill="#0f3d2e"/>
+  <text x="256" y="430" font-family="Arial, sans-serif" font-size="58" font-weight="700" fill="#fff" text-anchor="middle">FFM</text>
+</svg>

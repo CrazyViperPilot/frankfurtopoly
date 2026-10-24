@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f3d2e">
+  <title>Frankfurtopoly</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <section id="screen-name" class="screen hidden">
+      <h1>Frankfurtopoly</h1>
+      <p>Wer bist du?</p>
+      <div id="name-buttons" class="row"></div>
+    </section>
+
+    <section id="screen-lobby" class="screen hidden">
+      <h1>Frankfurtopoly</h1>
+      <p class="muted">Du bist <b id="lobby-me"></b> · <a href="#" id="change-name">Name ändern</a></p>
+      <div id="lobby-body" class="card"></div>
+      <div id="offline" class="hidden warn">Offline – Frankfurtopoly braucht Internet zum Spielen.</div>
+    </section>
+
+    <section id="screen-game" class="hidden">
+      <div id="board"></div>
+      <aside id="panel">
+        <div id="players"></div>
+        <div id="actions"></div>
+        <div id="log"></div>
+        <div class="row small">
+          <button id="btn-props" class="ghost">Meine Felder</button>
+          <button id="btn-menu" class="ghost">Menü</button>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <dialog id="dlg"><div id="dlg-body"></div></dialog>
+  <div id="toast" class="hidden"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,597 @@
+{
+ "groups": {
+  "braun": {
+   "name": "Braun",
+   "color": "#8b5a2b",
+   "house": 50
+  },
+  "hellblau": {
+   "name": "Hellblau",
+   "color": "#7dd3fc",
+   "house": 50
+  },
+  "pink": {
+   "name": "Pink",
+   "color": "#e879b9",
+   "house": 100
+  },
+  "orange": {
+   "name": "Orange",
+   "color": "#f59e0b",
+   "house": 100
+  },
+  "rot": {
+   "name": "Rot",
+   "color": "#dc2626",
+   "house": 150
+  },
+  "gelb": {
+   "name": "Gelb",
+   "color": "#facc15",
+   "house": 150
+  },
+  "gruen": {
+   "name": "Grün",
+   "color": "#16a34a",
+   "house": 200
+  },
+  "dunkelblau": {
+   "name": "Dunkelblau",
+   "color": "#1e3a8a",
+   "house": 200
+  }
+ },
+ "fields": [
+  {
+   "type": "go",
+   "name": "Los"
+  },
+  {
+   "type": "street",
+   "name": "Hanauer Landstraße",
+   "group": "braun",
+   "price": 60,
+   "rent": [
+    2,
+    10,
+    30,
+    90,
+    160,
+    250
+   ]
+  },
+  {
+   "type": "chest",
+   "name": "Gemeinschaftsfeld"
+  },
+  {
+   "type": "street",
+   "name": "Mainzer Landstraße",
+   "group": "braun",
+   "price": 60,
+   "rent": [
+    4,
+    20,
+    60,
+    180,
+    320,
+    450
+   ]
+  },
+  {
+   "type": "tax",
+   "name": "Einkommensteuer",
+   "amount": 200
+  },
+  {
+   "type": "school",
+   "name": "Emma-Kann-Grundschule",
+   "price": 200
+  },
+  {
+   "type": "street",
+   "name": "Leipziger Straße",
+   "group": "hellblau",
+   "price": 100,
+   "rent": [
+    6,
+    30,
+    90,
+    270,
+    400,
+    550
+   ]
+  },
+  {
+   "type": "chance",
+   "name": "Ereignisfeld"
+  },
+  {
+   "type": "street",
+   "name": "Berger Straße",
+   "group": "hellblau",
+   "price": 100,
+   "rent": [
+    6,
+    30,
+    90,
+    270,
+    400,
+    550
+   ]
+  },
+  {
+   "type": "street",
+   "name": "Oeder Weg",
+   "group": "hellblau",
+   "price": 120,
+   "rent": [
+    8,
+    40,
+    100,
+    300,
+    450,
+    600
+   ]
+  },
+  {
+   "type": "jail",
+   "name": "JVA Preungesheim"
+  },
+  {
+   "type": "street",
+   "name": "Mörfelder Landstraße",
+   "group": "pink",
+   "price": 140,
+   "rent": [
+    10,
+    50,
+    150,
+    450,
+    625,
+    750
+   ]
+  },
+  {
+   "type": "utility",
+   "name": "Mainova",
+   "price": 150
+  },
+  {
+   "type": "street",
+   "name": "Brückenstraße",
+   "group": "pink",
+   "price": 140,
+   "rent": [
+    10,
+    50,
+    150,
+    450,
+    625,
+    750
+   ]
+  },
+  {
+   "type": "street",
+   "name": "Schweizer Straße",
+   "group": "pink",
+   "price": 160,
+   "rent": [
+    12,
+    60,
+    180,
+    500,
+    700,
+    900
+   ]
+  },
+  {
+   "type": "school",
+   "name": "Stadtgymnasium",
+   "price": 200
+  },
+  {
+   "type": "street",
+   "name": "Pariser Straße",
+   "group": "orange",
+   "price": 180,
+   "rent": [
+    14,
+    70,
+    200,
+    550,
+    750,
+    950
+   ]
+  },
+  {
+   "type": "chest",
+   "name": "Gemeinschaftsfeld"
+  },
+  {
+   "type": "street",
+   "name": "Tel-Aviv-Platz",
+   "group": "orange",
+   "price": 180,
+   "rent": [
+    14,
+    70,
+    200,
+    550,
+    750,
+    950
+   ]
+  },
+  {
+   "type": "street",
+   "name": "Europa-Allee",
+   "group": "orange",
+   "price": 200,
+   "rent": [
+    16,
+    80,
+    220,
+    600,
+    800,
+    1000
+   ]
+  },
+  {
+   "type": "parking",
+   "name": "Frei Parken"
+  },
+  {
+   "type": "street",
+   "name": "Kaiserstraße",
+   "group": "rot",
+   "price": 220,
+   "rent": [
+    18,
+    90,
+    250,
+    700,
+    875,
+    1050
+   ]
+  },
+  {
+   "type": "chance",
+   "name": "Ereignisfeld"
+  },
+  {
+   "type": "street",
+   "name": "Große Bockenheimer Straße",
+   "group": "rot",
+   "price": 220,
+   "rent": [
+    18,
+    90,
+    250,
+    700,
+    875,
+    1050
+   ]
+  },
+  {
+   "type": "street",
+   "name": "Bockenheimer Landstraße",
+   "group": "rot",
+   "price": 240,
+   "rent": [
+    20,
+    100,
+    300,
+    750,
+    925,
+    1100
+   ]
+  },
+  {
+   "type": "school",
+   "name": "Neues Gymnasium",
+   "price": 200
+  },
+  {
+   "type": "street",
+   "name": "Taunusanlage",
+   "group": "gelb",
+   "price": 260,
+   "rent": [
+    22,
+    110,
+    330,
+    800,
+    975,
+    1150
+   ]
+  },
+  {
+   "type": "street",
+   "name": "Neue Mainzer Straße",
+   "group": "gelb",
+   "price": 260,
+   "rent": [
+    22,
+    110,
+    330,
+    800,
+    975,
+    1150
+   ]
+  },
+  {
+   "type": "utility",
+   "name": "Main-Wasserwerk",
+   "price": 150
+  },
+  {
+   "type": "street",
+   "name": "Römerberg",
+   "group": "gelb",
+   "price": 280,
+   "rent": [
+    24,
+    120,
+    360,
+    850,
+    1025,
+    1200
+   ]
+  },
+  {
+   "type": "gotojail",
+   "name": "Ab in die JVA"
+  },
+  {
+   "type": "street",
+   "name": "Rathenauplatz",
+   "group": "gruen",
+   "price": 300,
+   "rent": [
+    26,
+    130,
+    390,
+    900,
+    1100,
+    1275
+   ]
+  },
+  {
+   "type": "street",
+   "name": "Börsenplatz",
+   "group": "gruen",
+   "price": 300,
+   "rent": [
+    26,
+    130,
+    390,
+    900,
+    1100,
+    1275
+   ]
+  },
+  {
+   "type": "chest",
+   "name": "Gemeinschaftsfeld"
+  },
+  {
+   "type": "street",
+   "name": "Opernplatz",
+   "group": "gruen",
+   "price": 320,
+   "rent": [
+    28,
+    150,
+    450,
+    1000,
+    1200,
+    1400
+   ]
+  },
+  {
+   "type": "school",
+   "name": "Goethe-Gymnasium",
+   "price": 200
+  },
+  {
+   "type": "chance",
+   "name": "Ereignisfeld"
+  },
+  {
+   "type": "street",
+   "name": "Goethestraße",
+   "group": "dunkelblau",
+   "price": 350,
+   "rent": [
+    35,
+    175,
+    500,
+    1100,
+    1300,
+    1500
+   ]
+  },
+  {
+   "type": "tax",
+   "name": "Zusatzsteuer",
+   "amount": 100
+  },
+  {
+   "type": "street",
+   "name": "Zeil",
+   "group": "dunkelblau",
+   "price": 400,
+   "rent": [
+    50,
+    200,
+    600,
+    1400,
+    1700,
+    2000
+   ]
+  }
+ ],
+ "chance": [
+  {
+   "text": "Rücke vor bis auf Los. Ziehe 200 € ein.",
+   "a": "move",
+   "v": 0
+  },
+  {
+   "text": "Rücke vor zur Bockenheimer Landstraße. Kommst du über Los, ziehe 200 € ein.",
+   "a": "move",
+   "v": 24
+  },
+  {
+   "text": "Rücke vor zur Schweizer Straße. Kommst du über Los, ziehe 200 € ein.",
+   "a": "move",
+   "v": 14
+  },
+  {
+   "text": "Shoppen auf der Zeil! Rücke vor zur Zeil.",
+   "a": "move",
+   "v": 39
+  },
+  {
+   "text": "Elternabend: Rücke vor zum Goethe-Gymnasium. Kommst du über Los, ziehe 200 € ein.",
+   "a": "move",
+   "v": 35
+  },
+  {
+   "text": "Rücke vor zur nächsten Schule. Gehört sie jemandem, zahle das Doppelte der Miete.",
+   "a": "school"
+  },
+  {
+   "text": "Schulwechsel! Rücke vor zur nächsten Schule. Gehört sie jemandem, zahle das Doppelte der Miete.",
+   "a": "school"
+  },
+  {
+   "text": "Rücke vor zum nächsten Werk. Gehört es jemandem, würfle und zahle das Zehnfache der Augenzahl.",
+   "a": "utility"
+  },
+  {
+   "text": "Die Bank zahlt dir eine Dividende von 50 €.",
+   "a": "money",
+   "v": 50
+  },
+  {
+   "text": "Du kommst aus der JVA frei! Behalte diese Karte, bis du sie brauchst.",
+   "a": "jailcard"
+  },
+  {
+   "text": "Gehe 3 Felder zurück.",
+   "a": "back",
+   "v": 3
+  },
+  {
+   "text": "Schwarzfahren in der U4 erwischt! Gehe direkt in die JVA. Gehe nicht über Los.",
+   "a": "jail"
+  },
+  {
+   "text": "Renovierung deiner Häuser: Zahle 25 € je Haus und 100 € je Hotel.",
+   "a": "repairs",
+   "v": [
+    25,
+    100
+   ]
+  },
+  {
+   "text": "Strafzettel: Falschparken an der Hauptwache. Zahle 15 €.",
+   "a": "money",
+   "v": -15
+  },
+  {
+   "text": "Du wirst zum Elternbeirat gewählt. Zahle jedem Mitspieler 50 €.",
+   "a": "payeach",
+   "v": 50
+  },
+  {
+   "text": "Dein Bausparvertrag ist fällig. Ziehe 150 € ein.",
+   "a": "money",
+   "v": 150
+  }
+ ],
+ "chest": [
+  {
+   "text": "Rücke vor bis auf Los. Ziehe 200 € ein.",
+   "a": "move",
+   "v": 0
+  },
+  {
+   "text": "Bankirrtum zu deinen Gunsten. Ziehe 200 € ein.",
+   "a": "money",
+   "v": 200
+  },
+  {
+   "text": "Arztkosten. Zahle 50 €.",
+   "a": "money",
+   "v": -50
+  },
+  {
+   "text": "Du verkaufst Aktien an der Frankfurter Börse und erhältst 50 €.",
+   "a": "money",
+   "v": 50
+  },
+  {
+   "text": "Du kommst aus der JVA frei! Behalte diese Karte, bis du sie brauchst.",
+   "a": "jailcard"
+  },
+  {
+   "text": "Gehe direkt in die JVA. Gehe nicht über Los. Ziehe keine 200 € ein.",
+   "a": "jail"
+  },
+  {
+   "text": "Du hast Geburtstag! Jeder Mitspieler schenkt dir 10 €.",
+   "a": "collecteach",
+   "v": 10
+  },
+  {
+   "text": "Gewinn beim Apfelweinfest auf dem Römerberg. Ziehe 100 € ein.",
+   "a": "money",
+   "v": 100
+  },
+  {
+   "text": "Einkommensteuer-Rückzahlung. Ziehe 20 € ein.",
+   "a": "money",
+   "v": 20
+  },
+  {
+   "text": "Deine Lebensversicherung wird fällig. Ziehe 100 € ein.",
+   "a": "money",
+   "v": 100
+  },
+  {
+   "text": "Krankenhausgebühren. Zahle 100 €.",
+   "a": "money",
+   "v": -100
+  },
+  {
+   "text": "Klassenfahrt in den Palmengarten. Zahle 50 €.",
+   "a": "money",
+   "v": -50
+  },
+  {
+   "text": "Beratungshonorar. Ziehe 25 € ein.",
+   "a": "money",
+   "v": 25
+  },
+  {
+   "text": "Straßenausbesserung: Zahle 40 € je Haus und 115 € je Hotel.",
+   "a": "repairs",
+   "v": [
+    40,
+    115
+   ]
+  },
+  {
+   "text": "Zweiter Preis beim Museumsuferfest-Wettbewerb. Ziehe 10 € ein.",
+   "a": "money",
+   "v": 10
+  },
+  {
+   "text": "Du erbst 100 €.",
+   "a": "money",
+   "v": 100
+  }
+ ]
+}
