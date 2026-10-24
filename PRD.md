@@ -1,9 +1,9 @@
-# Frankfurtopoly – PRD (v0.1)
+# Frankfurtopoly – PRD (v0.2)
 
 Monopoly mit Frankfurter Straßen für 2–3 Spieler (Daniel, Lea, Kira) über das Netz, als Web-App im Browser auf
 Android-Smartphone und -Tablet. Live: **https://phpexpert.de/games/frankfurtopoly/**
 
-Status: **v0.1 – umgesetzt mit Standardannahmen (Abschnitt 9), offene Fragen in Abschnitt 10.**
+Status: **v0.2 – von Daniel geklärt (2026-10-24): offizielle Regeln, Computergegner und Chat ergänzt.**
 
 ## 1. Ziele
 - Spielbar im Browser auf Android-Smartphone (z. B. Pixel 8a) und -Tablet (z. B. Lenovo Tab M11), Hoch- und Querformat.
@@ -12,7 +12,7 @@ Status: **v0.1 – umgesetzt mit Standardannahmen (Abschnitt 9), offene Fragen i
 - Regeln wie beim klassischen Monopoly.
 
 ## 2. Nicht-Ziele
-- Keine Konten, keine Registrierung, keine öffentlichen Lobbys, keine Computergegner (v0.1), kein Chat (v0.1).
+- Keine Konten, keine Registrierung, keine öffentlichen Lobbys, kein Zugangsschlüssel (die URL ist nicht öffentlich bekannt).
 
 ## 3. Spieler und Lobby
 - Drei fest eingebaute Spieler: **Daniel, Lea, Kira**. Beim ersten Start wählt man seinen Namen; er wird lokal gemerkt
@@ -25,6 +25,22 @@ Status: **v0.1 – umgesetzt mit Standardannahmen (Abschnitt 9), offene Fragen i
   erst übernehmen, wenn das alte 30 s lang nichts mehr vom Server geholt hat (Reconnect nach Handywechsel/Absturz).
 - Wer ein laufendes Spiel verlässt, scheidet aus; sein Besitz geht an die Bank.
 - Nach 6 Stunden ohne Aktion wird alles zurückgesetzt.
+
+## 3a. Computergegner (v0.2)
+- Der Host kann in der Lobby Computergegner hinzufügen und entfernen: **Bembel** 🤖 (orange) und **Handkäs** 🤖 (türkis).
+  Maximal 4 Spieler insgesamt; so kann man auch allein gegen den Computer spielen (Start ab 2 Spielern inkl. Bots).
+- Die Bots laufen auf dem Server: höchstens eine Aktion pro Sekunde, ausgelöst durch die Abfragen der Mitspieler.
+- Strategie: kaufen, wenn danach noch 100 € übrig sind; bieten bis zum Kaufpreis; bauen, solange 250 € Reserve bleiben;
+  Hypotheken ablösen ab 400 € Reserve; in der JVA Freikarte nutzen oder bei viel Geld freikaufen; bei Schulden erst
+  Häuser verkaufen, dann Hypotheken, sonst Bankrott. Handelsangebote nehmen sie an, wenn sie mindestens 25 % mehr Wert
+  bekommen und keine Straße hergeben, die dem anderen eine Farbgruppe komplett macht. Bots schlagen selbst keinen Handel vor.
+
+## 3b. Chat (v0.2)
+- 💬-Button unten rechts. Antippen blendet den Chat ein; nach ein paar Sekunden ohne Eingabe blendet er sich wieder aus.
+- Neue Nachricht: Der Chat blendet sich kurz ein und wieder aus.
+- **Jede Spielaktion** steht auch als (graue) Chatnachricht im Chat, z. B. „Kira kauft Emma-Kann-Grundschule für 200 €“,
+  ebenso Lobby-Ereignisse (hostet, spielt mit, Spielstart, Sieger).
+- Nachrichten werden nach **5 Minuten** gelöscht. Max. 200 Zeichen. Schreiben kann, wer in der Runde ist.
 
 ## 4. Spielbrett
 40 Felder wie im Original; Preise und Mieten wie im klassischen Monopoly (in €).
@@ -84,22 +100,25 @@ Status: **v0.1 – umgesetzt mit Standardannahmen (Abschnitt 9), offene Fragen i
 - `api.php`: ein JSON-Zustand in `data/state.json` mit `flock`, `data/` per `.htaccess` gesperrt.
   `engine.php`: Regel-Engine als reine Funktionen. Server ist maßgeblich (würfelt, prüft jeden Zug).
 - Synchronisation per Polling alle 1,5 s (`api.php?v=<version>` → `{"same":true}`, wenn sich nichts geändert hat).
-- Service Worker cacht nur die Oberfläche (`frankfurtopoly-v1`), nie `api.php`.
+- Service Worker cacht nur die Oberfläche (`frankfurtopoly-v2`), nie `api.php`.
+- `bot.php`: Entscheidungen der Computergegner (reine Funktionen, getestet mit kompletten Bot-gegen-Bot-Spielen).
 - Deploy: GitHub Action bei jedem Push auf `main`: Tests, dann Upload per `lftp` (FTPS) mit den Secrets der
   Umgebung **FTP** (`FTP_SERVER`, `FTP_USER`, `FTP_PASSWORD`). Zielordner `FTP_DIR` (Variable, Standard `./frankfurtopoly/`).
   Ohne `--delete`, der laufende Spielstand auf dem Server bleibt erhalten.
 
 ## 8. Tests
 - `php tests/engine_test.php`: Brett, Kaufen, Miete (Gruppe, Häuser, Schulen, Werke), Steuern, Los, JVA (Pasch, Zahlen,
-  3. Versuch, dritter Pasch), Versteigerung, Bauen/Verkaufen/Hotel, Hypothek, Karten, Schulden/Bankrott, Verlassen, Handel.
+  3. Versuch, dritter Pasch), Versteigerung, Bauen/Verkaufen/Hotel, Hypothek, Karten, Schulden/Bankrott, Verlassen, Handel,
+  20 komplette Bot-Spiele ohne ungültige Aktion und ohne negatives Geld, Handelsentscheidung der Bots.
 - Manuell/Playwright: 3 Browser (Tablet quer, Handy quer, Handy hoch) gegen `php -S`.
 
-## 9. Getroffene Standardannahmen
-- Kein Zugangsschlüssel: Wer die URL kennt, kann einen freien Namen wählen (siehe offene Fragen).
-- Kein Computergegner, kein Chat, kein Zugtimer.
-- Startgeld 1.500 €, Werte wie Monopoly-Classic in Euro.
-- Bei Bankrott an die Bank werden Felder frei statt versteigert.
-- Handeln nur durch den Spieler am Zug.
-
-## 10. Offene Fragen
-Siehe README bzw. Antwort an Daniel; nach Klärung hier eintragen.
+## 9. Entscheidungen (geklärt mit Daniel)
+- Zielordner `phpexpert.de/games/frankfurtopoly/` passt (FTP-Login startet in `/games`).
+- Kein Zugangsschlüssel – die URL kennt niemand.
+- Offizielle Regeln: Startgeld 1.500 €, Frei Parken ohne Geld, Werte wie Monopoly-Classic in Euro.
+- Kein Zeitlimit: Der Host kann jederzeit beenden, dann gewinnt das größte Vermögen.
+- Bei Bankrott an die Bank werden Felder frei statt versteigert; Handeln nur durch den Spieler am Zug;
+  Hypotheken gehen beim Handel ohne 10 % Zinsen mit.
+- Straßen und Farbgruppen wie in Abschnitt 4.
+- Eintrag auf der Games-Startseite (`crazyviperpilot.github.io/games/`) mit Link nach phpexpert.de.
+- Kein Zugtimer.

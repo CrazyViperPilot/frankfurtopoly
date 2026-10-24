@@ -2,15 +2,21 @@
 // Frankfurtopoly multiplayer API (one JSON state file with flock, no database).
 //
 //   GET  api.php?v=N        → state (or {"same":true} if the version is still N)
-//   POST api.php {action…}  → lobby: host, join, leave, start, end, lobby
+//   POST api.php {action…}  → lobby: host, join, leave, addbot, removebot, start, end, lobby, chat
 //                              game:  everything fp_act() understands (roll, buy, decline, bid, …)
 //
 // Headers: X-FP-Name (Daniel|Lea|Kira), X-FP-Token (issued by host/join, proves the seat is yours).
+// Computer opponents act server-side: at most one bot action per request and per FP_BOT_DELAY seconds.
 
 require __DIR__ . '/engine.php';
+require __DIR__ . '/bot.php';
 
 const FP_STALE_PLAYER = 30;   // seconds without a request before a name can be taken over from another device
 const FP_IDLE_RESET = 21600;  // 6 h without any action resets everything
+const FP_MAX_PLAYERS = 4;
+const FP_BOT_DELAY = 1.0;
+const FP_CHAT_TTL = 300;      // chat messages are deleted after 5 minutes
+const FP_CHAT_MAX = 200;      // characters per message
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -31,18 +37,40 @@ $fp = fopen($dataDir . '/state.json', 'c+');
 if (!$fp) fail(500, 'Spielstand nicht lesbar');
 flock($fp, LOCK_EX);
 
-function empty_state() {
-    return ['version' => 1, 'phase' => 'none', 'host' => null, 'players' => [], 'game' => null,
-            'result' => null, 'updated' => time()];
+function empty_state($old = null) {
+    return ['version' => $old ? $old['version'] + 1 : 1, 'phase' => 'none', 'host' => null, 'players' => [], 'game' => null,
+            'result' => null, 'updated' => time(), 'chat' => $old ? $old['chat'] : [], 'chatN' => $old ? $old['chatN'] : 0,
+            'logSeen' => 0, 'botAt' => 0];
 }
 function player_idx($st, $n) { foreach ($st['players'] as $i => $p) if ($p['name'] === $n) return $i; return -1; }
 function new_token() { return bin2hex(random_bytes(16)); }
+function bot_names($st) { $r = []; foreach ($st['players'] as $p) if (!empty($p['bot'])) $r[] = $p['name']; return $r; }
+function human_count($st) { return count($st['players']) - count(bot_names($st)); }
+function chat_add(&$st, $who, $text) {
+    $st['chat'][] = ['id' => ++$st['chatN'], 't' => time(), 'n' => $who, 'x' => $text];
+    $st['chat'] = array_slice($st['chat'], -80);
+}
+// Every game log line also becomes a (system) chat message.
+function sync_log(&$st) {
+    if (!$st['game']) return;
+    $n = isset($st['game']['logN']) ? $st['game']['logN'] : 0;
+    $new = min($n - $st['logSeen'], count($st['game']['log']));
+    if ($new > 0) foreach (array_slice($st['game']['log'], -$new) as $line) chat_add($st, null, $line);
+    $st['logSeen'] = $n;
+}
+function finish_if_over(&$st) {
+    if ($st['phase'] === 'playing' && $st['game']['stage'] === 'over') { $st['phase'] = 'finished'; $st['result'] = fp_ranking($st['game']); }
+}
 
 $st = json_decode(stream_get_contents($fp), true);
 if (!is_array($st) || !isset($st['phase'])) $st = empty_state();
+$st += ['chat' => [], 'chatN' => 0, 'logSeen' => 0, 'botAt' => 0];
 $now = time();
 $dirty = false;
-if ($st['phase'] !== 'none' && $now - $st['updated'] > FP_IDLE_RESET) { $v = $st['version']; $st = empty_state(); $st['version'] = $v + 1; $dirty = true; }
+if ($st['phase'] !== 'none' && $now - $st['updated'] > FP_IDLE_RESET) { $st = empty_state($st); $dirty = true; }
+$before = count($st['chat']);
+$st['chat'] = array_values(array_filter($st['chat'], function ($m) use ($now) { return $now - $m['t'] < FP_CHAT_TTL; }));
+if (count($st['chat']) !== $before) $dirty = true;
 
 $me = player_idx($st, $name);
 $authed = $me >= 0 && $token !== '' && hash_equals($st['players'][$me]['token'], $token);
@@ -53,6 +81,7 @@ if ($authed) {
 
 // Online markers only bump the version when they flip, so polling clients aren't woken for nothing.
 foreach ($st['players'] as $i => $p) {
+    if (!empty($p['bot'])) continue;
     $on = $now - $p['seen'] <= FP_STALE_PLAYER;
     if ($on !== $p['online']) { $st['players'][$i]['online'] = $on; $st['version']++; $dirty = true; }
 }
@@ -63,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!is_array($body) || empty($body['action'])) fail(400, 'Erwartet {"action": …}');
     $action = $body['action'];
     $err = null;
-    $changed = true;
+    $isHost = $authed && $st['host'] === $name;
     switch ($action) {
         case 'host':
         case 'join':
@@ -77,52 +106,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
             }
             if ($st['phase'] === 'playing' || $st['phase'] === 'finished') { $err = 'Die Runde läuft schon'; break; }
+            if (count($st['players']) >= FP_MAX_PLAYERS) { $err = 'Die Runde ist voll – der Host kann einen Computergegner entfernen'; break; }
             $issued = new_token();
             $st['players'][] = ['name' => $name, 'token' => $issued, 'seen' => $now, 'online' => true];
-            if ($action === 'host') { $st['phase'] = 'lobby'; $st['host'] = $name; }
+            if ($action === 'host') { $st['phase'] = 'lobby'; $st['host'] = $name; chat_add($st, null, "$name hostet eine Runde."); }
+            else chat_add($st, null, "$name spielt mit.");
             break;
         case 'leave':
             if (!$authed) { $err = 'Du bist nicht in der Runde'; break; }
             array_splice($st['players'], $me, 1);
-            if ($st['phase'] === 'playing') {
-                fp_leave($st['game'], $name);
-                if ($st['game']['stage'] === 'over') { $st['phase'] = 'finished'; $st['result'] = fp_ranking($st['game']); }
-            }
-            if (!$st['players']) { $v = $st['version']; $st = empty_state(); $st['version'] = $v; break; }
-            if ($st['host'] === $name) $st['host'] = $st['players'][0]['name'];
+            chat_add($st, null, "$name hat die Runde verlassen.");
+            if ($st['phase'] === 'playing') { fp_leave($st['game'], $name); sync_log($st); finish_if_over($st); }
+            if (human_count($st) === 0) { $st = empty_state($st); break; }
+            if ($st['host'] === $name) foreach ($st['players'] as $p) if (empty($p['bot'])) { $st['host'] = $p['name']; break; }
+            break;
+        case 'addbot':
+            if (!$isHost || $st['phase'] !== 'lobby') { $err = 'Nur der Host in der Lobby'; break; }
+            if (count($st['players']) >= FP_MAX_PLAYERS) { $err = 'Maximal ' . FP_MAX_PLAYERS . ' Spieler'; break; }
+            $free = array_values(array_diff(FP_BOT_NAMES, bot_names($st)));
+            if (!$free) { $err = 'Keine weiteren Computergegner'; break; }
+            $st['players'][] = ['name' => $free[0], 'token' => '', 'seen' => $now, 'online' => true, 'bot' => true];
+            chat_add($st, null, "Computergegner {$free[0]} spielt mit.");
+            break;
+        case 'removebot':
+            if (!$isHost || $st['phase'] !== 'lobby') { $err = 'Nur der Host in der Lobby'; break; }
+            $i = player_idx($st, isset($body['bot']) ? $body['bot'] : '');
+            if ($i < 0 || empty($st['players'][$i]['bot'])) { $err = 'Kein Computergegner'; break; }
+            array_splice($st['players'], $i, 1);
             break;
         case 'start':
-            if (!$authed || $st['host'] !== $name) { $err = 'Nur der Host kann starten'; break; }
+            if (!$isHost) { $err = 'Nur der Host kann starten'; break; }
             if ($st['phase'] !== 'lobby') { $err = 'Keine Lobby'; break; }
             if (count($st['players']) < 2) { $err = 'Mindestens 2 Spieler'; break; }
             $st['game'] = fp_new_game(array_column($st['players'], 'name'));
-            $st['phase'] = 'playing'; $st['result'] = null;
+            $st['phase'] = 'playing'; $st['result'] = null; $st['logSeen'] = 0;
+            chat_add($st, null, 'Das Spiel beginnt!');
+            sync_log($st);
             break;
         case 'end':
-            if (!$authed || $st['host'] !== $name) { $err = 'Nur der Host kann beenden'; break; }
+            if (!$isHost) { $err = 'Nur der Host kann beenden'; break; }
             if ($st['phase'] === 'playing') {
                 fp_log($st['game'], "$name beendet das Spiel.");
+                sync_log($st);
                 $st['phase'] = 'finished'; $st['result'] = fp_ranking($st['game']);
+                chat_add($st, null, $st['result'][0]['name'] . ' gewinnt nach Vermögen.');
             } else {
-                $v = $st['version']; $st = empty_state(); $st['version'] = $v;
+                $st = empty_state($st);
             }
             break;
         case 'lobby':
             // After a finished game: same players back to the lobby for a new round.
-            if (!$authed || $st['host'] !== $name || $st['phase'] !== 'finished') { $err = 'Nicht möglich'; break; }
+            if (!$isHost || $st['phase'] !== 'finished') { $err = 'Nicht möglich'; break; }
             $st['phase'] = 'lobby'; $st['game'] = null; $st['result'] = null;
+            break;
+        case 'chat':
+            $text = trim(isset($body['text']) && is_string($body['text']) ? $body['text'] : '');
+            if (!$authed) { $err = 'Erst der Runde beitreten'; break; }
+            if ($text === '') { $err = 'Leere Nachricht'; break; }
+            chat_add($st, $name, function_exists('mb_substr') ? mb_substr($text, 0, FP_CHAT_MAX) : substr($text, 0, FP_CHAT_MAX));
             break;
         default:
             if (!$authed) { $err = 'Du bist nicht in der Runde'; break; }
             if ($st['phase'] !== 'playing') { $err = 'Es läuft kein Spiel'; break; }
             $err = fp_act($st['game'], $name, $action, $body);
-            if ($err === null && $st['game']['stage'] === 'over') { $st['phase'] = 'finished'; $st['result'] = fp_ranking($st['game']); }
+            if ($err === null) {
+                sync_log($st);
+                if ($st['game']['stage'] === 'over') chat_add($st, null, $st['game']['winner'] . ' gewinnt Frankfurtopoly!');
+                finish_if_over($st);
+            }
     }
     if ($err !== null) {
         if ($dirty) save($fp, $st);
         fail(409, $err);
     }
     $st['version']++; $st['updated'] = $now; $dirty = true;
+    $st['botAt'] = microtime(true) + FP_BOT_DELAY;   // give humans a moment to see what happened
+} elseif ($st['phase'] === 'playing' && microtime(true) >= $st['botAt']) {
+    $bots = bot_names($st);
+    $next = $bots ? fp_bot_next($st['game'], $bots) : null;
+    if ($next) {
+        list($bot, $act, $args) = $next;
+        $err = fp_act($st['game'], $bot, $act, $args);
+        // Safety net: never let a bot block the game.
+        if ($err !== null) foreach (['endturn', 'pass', 'reject', 'decline', 'roll', 'bankrupt'] as $alt) if (fp_act($st['game'], $bot, $alt, []) === null) break;
+        sync_log($st);
+        if ($st['game']['stage'] === 'over') chat_add($st, null, $st['game']['winner'] . ' gewinnt Frankfurtopoly!');
+        finish_if_over($st);
+        $st['version']++; $st['updated'] = $now; $st['botAt'] = microtime(true) + FP_BOT_DELAY; $dirty = true;
+    }
 }
 
 function save($fp, $st) {
@@ -137,9 +208,10 @@ fclose($fp);
 if (isset($_GET['v']) && (int) $_GET['v'] === $st['version'] && $issued === null) { echo '{"same":true}'; exit; }
 
 $players = [];
-foreach ($st['players'] as $p) $players[] = ['name' => $p['name'], 'online' => $p['online']];
+foreach ($st['players'] as $p) $players[] = ['name' => $p['name'], 'online' => $p['online'], 'bot' => !empty($p['bot'])];
 $out = ['version' => $st['version'], 'phase' => $st['phase'], 'host' => $st['host'], 'players' => $players,
-        'game' => $st['game'], 'result' => $st['result'], 'me' => $name, 'joined' => $authed || $issued !== null];
+        'game' => $st['game'], 'result' => $st['result'], 'me' => $name, 'joined' => $authed || $issued !== null,
+        'chat' => $st['chat'], 'now' => $now];
 if ($out['game']) unset($out['game']['decks']);
 if ($issued !== null) $out['token'] = $issued;
 echo json_encode($out, JSON_UNESCAPED_UNICODE);

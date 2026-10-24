@@ -1,6 +1,7 @@
 <?php
 // Rule tests for the Frankfurtopoly engine: php tests/engine_test.php
 require __DIR__ . '/../frankfurtopoly/engine.php';
+require __DIR__ . '/../frankfurtopoly/bot.php';
 
 $fails = 0; $count = 0;
 function check($cond, $msg) { global $fails, $count; $count++; if (!$cond) { $fails++; echo "FAIL: $msg\n"; } }
@@ -164,6 +165,29 @@ check(fp_act($g, 'Daniel', 'accept', []) !== null, 'nur Empfänger nimmt an');
 fp_act($g, 'Lea', 'accept', []);
 check($g['props'][1]['o'] === 'Lea' && $g['props'][3]['o'] === 'Daniel', 'Tausch ausgeführt');
 check(fp_act($g, 'Daniel', 'offer', ['to' => 'Lea', 'give' => [], 'get' => [], 'giveMoney' => 2000, 'getMoney' => 0]) !== null, 'nicht genug Geld');
+
+// Bots: whole games between computer opponents run without errors and without negative money
+$finished = 0; $botErrors = 0; $negative = 0;
+for ($run = 0; $run < 20; $run++) {
+    $bots = ['Bembel', 'Handkäs', 'Kira'];
+    $g = fp_new_game($bots);
+    for ($k = 0; $k < 20000 && $g['stage'] !== 'over'; $k++) {
+        $n = fp_bot_next($g, $bots);
+        if (!$n) { $botErrors++; break; }
+        if (fp_act($g, $n[0], $n[1], $n[2]) !== null) { $botErrors++; break; }
+        foreach ($g['money'] as $m) if ($m < 0) $negative++;
+    }
+    if ($g['stage'] === 'over') $finished++;
+}
+check($botErrors === 0, "Bots handeln immer gültig ($botErrors Fehler)");
+check($negative === 0, 'nie negatives Geld');
+check($finished >= 10, "Bot-Spiele enden ($finished von 20)");
+$g = game(); own($g, 'Daniel', 1); own($g, 'Lea', 3);
+$g['trade'] = ['from' => 'Daniel', 'to' => 'Lea', 'give' => [1], 'get' => [3], 'giveMoney' => 0, 'getMoney' => 0];
+check(!fp_bot_trade_ok($g, $g['trade']), 'Bot gibt keine Straße her, die eine Gruppe vollmacht');
+$g['trade'] = ['from' => 'Daniel', 'to' => 'Lea', 'give' => [], 'get' => [3], 'giveMoney' => 200, 'getMoney' => 0];
+$g['props'][1] = null;
+check(fp_bot_trade_ok($g, $g['trade']), 'Bot nimmt gutes Angebot an');
 
 echo $fails ? "$fails von $count Tests fehlgeschlagen\n" : "Alle $count Tests ok\n";
 exit($fails ? 1 : 0);

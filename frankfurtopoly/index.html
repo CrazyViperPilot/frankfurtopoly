@@ -20,7 +20,7 @@
 
     <section id="screen-lobby" class="screen hidden">
       <h1>Frankfurtopoly</h1>
-      <p class="muted">Du bist <b id="lobby-me"></b> · <a href="#" id="change-name">Name ändern</a></p>
+      <p class="muted">Du bist <b id="lobby-me"></b><a href="#" id="change-name"> · Name ändern</a></p>
       <div id="lobby-body" class="card"></div>
       <div id="offline" class="hidden warn">Offline – Frankfurtopoly braucht Internet zum Spielen.</div>
     </section>
@@ -37,6 +37,12 @@
         </div>
       </aside>
     </section>
+  </div>
+
+  <button id="chat-btn" aria-label="Chat">💬<span id="chat-dot" class="hidden"></span></button>
+  <div id="chat" class="hidden">
+    <div id="chat-list"></div>
+    <form id="chat-form"><input id="chat-input" maxlength="200" autocomplete="off" placeholder="Nachricht …"><button>Senden</button></form>
   </div>
 
   <dialog id="dlg"><div id="dlg-body"></div></dialog>

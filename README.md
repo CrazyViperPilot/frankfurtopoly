@@ -10,7 +10,8 @@ Live: https://phpexpert.de/games/frankfurtopoly/ · Anforderungen: [PRD.md](PRD.
 | `frankfurtopoly/` | wird 1:1 nach `phpexpert.de/games/frankfurtopoly/` hochgeladen |
 | `frankfurtopoly/board.json` | Felder, Preise, Mieten, Karten (von PHP und JS gelesen) |
 | `frankfurtopoly/engine.php` | Regel-Engine (reine Funktionen) |
-| `frankfurtopoly/api.php` | Lobby + Spiel-API, Zustand in `data/state.json` |
+| `frankfurtopoly/bot.php` | Computergegner |
+| `frankfurtopoly/api.php` | Lobby, Chat, Bots, Spiel-API; Zustand in `data/state.json` |
 | `frankfurtopoly/js/`, `css/`, `index.html` | Oberfläche (Vanilla JS) |
 | `tests/engine_test.php` | Regeltests |
 

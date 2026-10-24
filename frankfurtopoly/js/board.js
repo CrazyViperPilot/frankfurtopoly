@@ -1,5 +1,6 @@
 // Board data (board.json, shared with the PHP engine) and board rendering.
-const PLAYER_COLORS = { Daniel: '#2563eb', Lea: '#db2777', Kira: '#7c3aed' };
+const HUMANS = ['Daniel', 'Lea', 'Kira'];
+const PLAYER_COLORS = { Daniel: '#2563eb', Lea: '#db2777', Kira: '#7c3aed', Bembel: '#ea580c', 'Handkäs': '#0d9488' };
 const ICONS = { go: '➜', chance: '❓', chest: '🎁', tax: '💶', school: '🏫', jail: '🔒', parking: '🅿️', gotojail: '🚓' };
 const UTIL_ICONS = { 'Mainova': '⚡', 'Main-Wasserwerk': '💧' };
 

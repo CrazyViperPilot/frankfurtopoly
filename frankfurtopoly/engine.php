@@ -48,7 +48,7 @@ function fp_new_game($names) {
     return $g;
 }
 
-function fp_log(&$g, $t) { $g['log'][] = $t; $g['log'] = array_slice($g['log'], -40); }
+function fp_log(&$g, $t) { $g['logN'] = (isset($g['logN']) ? $g['logN'] : 0) + 1; $g['log'][] = $t; $g['log'] = array_slice($g['log'], -40); }
 function fp_cur($g) { return $g['order'][$g['turn']]; }
 function fp_active($g) { $r = []; foreach ($g['order'] as $n) if (!$g['out'][$n]) $r[] = $n; return $r; }
 function fp_eur($v) { return number_format($v, 0, ',', '.') . ' €'; }

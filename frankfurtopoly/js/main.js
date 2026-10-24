@@ -53,12 +53,13 @@ function show(id) {
 
 function showNameScreen() {
   show('screen-name');
-  $('name-buttons').innerHTML = Object.keys(PLAYER_COLORS)
+  $('name-buttons').innerHTML = HUMANS
     .map((n) => `<button class="big" data-name="${n}" style="background:${PLAYER_COLORS[n]}">${n}</button>`).join('');
 }
 
 function render() {
   if (!S) return;
+  renderChat();
   const inGame = (S.phase === 'playing' || S.phase === 'finished') && S.game;
   if (inGame && (S.joined || !S.players.some((p) => p.name === S.me))) renderGame();
   else renderLobby();
@@ -69,14 +70,17 @@ function renderLobby() {
   $('lobby-me').textContent = S.me;
   const me = S.me;
   const inRoom = S.players.some((p) => p.name === me);
-  const list = S.players.map((p) => `<li>${dot(p.name)} ${p.name}${p.name === S.host ? ' <span class="tag">Host</span>' : ''}${p.online ? '' : ' <span class="muted">(offline)</span>'}</li>`).join('');
+  const isHost = S.joined && S.host === me && S.phase === 'lobby';
+  const list = S.players.map((p) => `<li>${dot(p.name)} ${p.bot ? '🤖 ' : ''}${p.name}${p.name === S.host ? ' <span class="tag">Host</span>' : ''}`
+    + `${p.online ? '' : ' <span class="muted">(offline)</span>'}${p.bot && isHost ? ` <button class="ghost mini" data-act="removebot" data-bot="${p.name}">entfernen</button>` : ''}</li>`).join('');
   let html = '';
   if (S.phase === 'none') {
     html = '<p>Gerade ist keine Runde offen.</p><button class="big" data-act="host">Runde hosten</button>';
   } else if (S.phase === 'lobby') {
     html = `<p><b>${S.host}</b> hostet eine Runde.</p><ul class="plist">${list}</ul>`;
     if (S.joined) {
-      if (S.host === me) html += `<button class="big" data-act="start" ${S.players.length < 2 ? 'disabled' : ''}>Runde starten</button>`
+      if (S.host === me) html += (S.players.length < 4 ? '<button class="ghost" data-act="addbot">🤖 Computergegner hinzufügen</button><br>' : '')
+        + `<button class="big" data-act="start" ${S.players.length < 2 ? 'disabled' : ''}>Runde starten</button>`
         + (S.players.length < 2 ? '<p class="muted">Warte auf mindestens einen Mitspieler …</p>' : '');
       else html += '<p class="muted">Warte, bis der Host startet …</p>';
       html += '<button data-act="leave" class="ghost">Verlassen</button>';
@@ -111,7 +115,8 @@ function renderGame() {
     if (g.jail[n] >= 0) flags.push('🔒 JVA');
     if (g.jailCards[n].length) flags.push('🎫×' + g.jailCards[n].length);
     const p = S.players.find((x) => x.name === n);
-    if (!g.out[n] && (!p || !p.online)) flags.push('offline');
+    if (p && p.bot) flags.push('🤖 Computer');
+    else if (!g.out[n] && (!p || !p.online)) flags.push('offline');
     return `<div class="prow${n === cur ? ' current' : ''}${g.out[n] ? ' out' : ''}">${dot(n)}<b>${n}${n === S.me ? ' (du)' : ''}</b>`
       + `<span class="money">${g.out[n] ? 'pleite' : eur(g.money[n])}</span><span class="flags">${flags.join(' ')}</span></div>`;
   }).join('');
@@ -268,6 +273,60 @@ function openMenu() {
     + 'Wer nicht zahlen kann und nichts mehr belasten kann, ist pleite. Der Letzte gewinnt – oder beim vorzeitigen Ende das größte Vermögen.</p></details>');
 }
 
+// ---------------------------------------------------------------- chat
+// The chat shows itself for a few seconds when opened or when a new message arrives, then hides again.
+// Messages are deleted by the server after 5 minutes; the client hides older ones right away.
+const CHAT_OPEN_MS = 6000;
+const CHAT_PEEK_MS = 3500;
+let chatSeen = -1;     // highest message id already shown (-1 = first load, don't pop up)
+let chatTimer = null;
+let clockOffset = 0;   // server time minus local time, seconds
+
+function chatShow(ms) {
+  $('chat').classList.remove('hidden');
+  $('chat-dot').classList.add('hidden');
+  clearTimeout(chatTimer);
+  chatTimer = setTimeout(chatHideIfIdle, ms);
+}
+function chatHideIfIdle() {
+  if (document.activeElement === $('chat-input') && $('chat-input').value) { chatTimer = setTimeout(chatHideIfIdle, 2000); return; }
+  $('chat').classList.add('hidden');
+}
+
+function renderChat() {
+  if (typeof S.now === 'number') clockOffset = S.now - Date.now() / 1000;
+  const now = Date.now() / 1000 + clockOffset;
+  const msgs = (S.chat || []).filter((m) => now - m.t < 300);
+  const list = $('chat-list');
+  list.innerHTML = msgs.map((m) => (m.n
+    ? `<div class="msg"><b style="color:${PLAYER_COLORS[m.n] || '#fff'}">${m.n}:</b> ${esc(m.x)}</div>`
+    : `<div class="msg sys">${esc(m.x)}</div>`)).join('') || '<div class="msg sys">Noch keine Nachrichten.</div>';
+  list.scrollTop = list.scrollHeight;
+  const top = msgs.length ? msgs[msgs.length - 1].id : 0;
+  if (chatSeen >= 0 && top > chatSeen) {
+    const fromMe = msgs.filter((m) => m.id > chatSeen).every((m) => m.n === S.me);
+    if (!fromMe || !$('chat').classList.contains('hidden')) chatShow($('chat').classList.contains('hidden') ? CHAT_PEEK_MS : CHAT_OPEN_MS);
+  }
+  chatSeen = Math.max(chatSeen, top);
+  $('chat-input').disabled = !S.joined;
+  $('chat-input').placeholder = S.joined ? 'Nachricht …' : 'Erst der Runde beitreten';
+}
+setInterval(() => { if (S) renderChat(); }, 15000);
+
+$('chat-btn').addEventListener('click', () => {
+  if ($('chat').classList.contains('hidden')) chatShow(CHAT_OPEN_MS); else $('chat').classList.add('hidden');
+});
+$('chat').addEventListener('pointerdown', () => chatShow(CHAT_OPEN_MS));
+$('chat-input').addEventListener('input', () => chatShow(CHAT_OPEN_MS));
+$('chat-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = $('chat-input').value.trim();
+  if (!text) return;
+  $('chat-input').value = '';
+  send('chat', { text });
+  chatShow(CHAT_OPEN_MS);
+});
+
 // ---------------------------------------------------------------- events
 const confirmTexts = {
   leave: 'Wirklich verlassen? Im laufenden Spiel gehen dein Geld und deine Felder an die Bank.',
@@ -290,6 +349,7 @@ document.addEventListener('click', (e) => {
     const extra = {};
     if (btn.dataset.field) extra.field = +btn.dataset.field;
     if (btn.dataset.amount) extra.amount = +btn.dataset.amount;
+    if (btn.dataset.bot) extra.bot = btn.dataset.bot;
     send(act, extra);
     return;
   }
