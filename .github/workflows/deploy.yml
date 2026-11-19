@@ -21,7 +21,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: PHP syntax
         run: for f in frankfurtopoly/*.php tests/*.php; do php -l "$f"; done
       - name: Rules engine tests
@@ -46,7 +46,7 @@ jobs:
             echo "::notice::FTP-Secrets fehlen – Deploy übersprungen."
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: steps.check.outputs.ready == 'true'
 
       # lftp instead of a Node FTP action: it handles FTPS servers that require
@@ -79,3 +79,17 @@ jobs:
           mirror --reverse --no-perms --verbose --exclude-glob data/*.json frankfurtopoly/ $FTP_DIR
           bye
           EOF2
+
+      # Kurzer Check nach dem Upload: Startseite muss 200 liefern, api.php ohne Spielername 400.
+      - name: Check live URLs
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          fail=0
+          check() {
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$1")
+            echo "$1 → $code (erwartet $2)"
+            [ "$code" = "$2" ] || { echo "::error::$1 liefert $code statt $2"; fail=1; }
+          }
+          check https://phpexpert.de/games/frankfurtopoly/ 200
+          check https://phpexpert.de/games/frankfurtopoly/api.php 400
+          exit $fail
